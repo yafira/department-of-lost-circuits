@@ -1,0 +1,192 @@
+/* Department of Lost Circuits - Styles */
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: 'Courier New', monospace;
+	background: linear-gradient(135deg, #99d0eb 0%, #764ba2 100%);
+	color: #333;
+	line-height: 1.6;
+	min-height: 100vh;
+	padding: 20px;
+}
+
+.container {
+	max-width: 1400px;
+	margin: 0 auto;
+	background: white;
+	border-radius: 12px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	overflow: hidden;
+}
+
+/* ========== HEADER ========== */
+
+header {
+	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	color: white;
+	padding: 40px 30px;
+	text-align: center;
+	border-bottom: 4px solid #0f3460;
+}
+
+header h1 {
+	font-size: 2.5em;
+	font-weight: bold;
+	letter-spacing: 2px;
+	margin-bottom: 10px;
+	text-transform: uppercase;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.subtitle {
+	font-size: 1.1em;
+	color: #a8dadc;
+	font-style: italic;
+	letter-spacing: 1px;
+}
+
+/* ========== CANVAS CONTAINER ========== */
+
+#canvas-container {
+	padding: 30px;
+	background: #f8f9fa;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 600px;
+}
+
+canvas {
+	max-width: 100%;
+	height: auto !important;
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+	background: white;
+}
+
+/* ========== FOOTER ========== */
+
+footer {
+	background: #2c3e50;
+	color: #ecf0f1;
+	padding: 30px 40px;
+	display: grid;
+	grid-template-columns: 1fr 2fr;
+	gap: 40px;
+}
+
+footer h3 {
+	font-size: 1.3em;
+	margin-bottom: 15px;
+	color: #3498db;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+/* ========== CONTROLS ========== */
+
+.controls ul {
+	list-style: none;
+}
+
+.controls li {
+	margin-bottom: 12px;
+	font-size: 0.95em;
+}
+
+kbd {
+	display: inline-block;
+	padding: 4px 10px;
+	background: #34495e;
+	border: 2px solid #1abc9c;
+	border-radius: 4px;
+	font-family: 'Courier New', monospace;
+	font-size: 0.9em;
+	font-weight: bold;
+	color: #1abc9c;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	margin-right: 8px;
+}
+
+/* ========== INFO ========== */
+
+.info p {
+	margin-bottom: 12px;
+	font-size: 0.95em;
+	line-height: 1.7;
+}
+
+.info strong {
+	color: #3498db;
+	font-weight: bold;
+}
+
+/* ========== RESPONSIVE ========== */
+
+@media (max-width: 900px) {
+	footer {
+		grid-template-columns: 1fr;
+		gap: 30px;
+	}
+
+	header h1 {
+		font-size: 2em;
+	}
+
+	.subtitle {
+		font-size: 1em;
+	}
+}
+
+@media (max-width: 600px) {
+	body {
+		padding: 10px;
+	}
+
+	header {
+		padding: 25px 20px;
+	}
+
+	header h1 {
+		font-size: 1.6em;
+	}
+
+	#canvas-container {
+		padding: 15px;
+	}
+
+	footer {
+		padding: 20px 25px;
+	}
+}
+
+/* ========== LOADING STATE ========== */
+
+.loading {
+	text-align: center;
+	padding: 60px;
+	font-size: 1.2em;
+	color: #95a5a6;
+}
+
+.loading::after {
+	content: '...';
+	animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+	0% {
+		content: '.';
+	}
+	33% {
+		content: '..';
+	}
+	66% {
+		content: '...';
+	}
+}
