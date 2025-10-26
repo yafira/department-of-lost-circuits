@@ -7,27 +7,28 @@
 		<link rel="stylesheet" href="style.css" />
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 		<script src="easygrid.js"></script>
+		<script src="p5.riso.js"></script>
 	</head>
 	<body>
 		<div class="container">
 			<header>
 				<h1>Department of Lost Circuits</h1>
 				<p class="subtitle">
-					a generative postage series for obsolete electronics
+					A Generative Postage Series for Obsolete Electronics
 				</p>
 			</header>
 
-			<main id="canvas-container">
-				<!-- p5.js canvas will be inserted here -->
-			</main>
+			<main id="canvas-container"></main>
 
 			<footer>
 				<div class="controls">
 					<h3>Controls</h3>
 					<ul>
 						<li><kbd>S</kbd> Save current sheet as PNG</li>
-						<li><kbd>R</kbd> Regenerate with new random seed</li>
-						<li><kbd>←</kbd> <kbd>→</kbd> Navigate between sheets</li>
+						<li><kbd>R</kbd> Reseed (new random border assignments)</li>
+						<li><kbd>←</kbd> <kbd>→</kbd> Navigate sheets</li>
+						<li><kbd>L</kbd> Toggle RISO preview (BLACK+TEAL)</li>
+						<li><kbd>E</kbd> Export RISO plates (when in RISO mode)</li>
 					</ul>
 				</div>
 
@@ -36,17 +37,14 @@
 						Each stamp is generated from device data including release year,
 						category, and image.
 					</p>
+					<p><strong>Year → circuit density</strong> (older = denser)</p>
 					<p>
-						<strong>Year affects circuit density</strong> — older devices
-						(1960s) show more complex circuitry.
+						<strong>Category → badge</strong>
+						(audio/storage/gaming/computing/camera/phone)
 					</p>
 					<p>
-						<strong>Category determines badge</strong> — audio, storage,
-						display, computing, gaming.
-					</p>
-					<p>
-						<strong>Border style is randomized</strong> — perforation,
-						scalloped, or zigzag edges.
+						<strong>Border varies per stamp</strong> (perforated / scalloped /
+						zigzag / ticket)
 					</p>
 				</div>
 			</footer>

@@ -8,7 +8,7 @@
 
 body {
 	font-family: 'Courier New', monospace;
-	background: linear-gradient(135deg, #99d0eb 0%, #764ba2 100%);
+	background: linear-gradient(135deg, #99d0eb 0%, #9779b5 100%);
 	color: #333;
 	line-height: 1.6;
 	min-height: 100vh;
@@ -27,7 +27,7 @@ body {
 /* ========== HEADER ========== */
 
 header {
-	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	background: #000000;
 	color: white;
 	padding: 40px 30px;
 	text-align: center;
@@ -122,7 +122,7 @@ kbd {
 }
 
 .info strong {
-	color: #3498db;
+	color: #b78ac5;
 	font-weight: bold;
 }
 
