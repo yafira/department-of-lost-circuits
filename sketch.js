@@ -1,5 +1,5 @@
-/* Department of Lost Circuits — print-ready sheet generator
-   - 5×4 grid (20 stamps) on 8×10" @ 300ppi (2400×3000)
+/* Department of Lost Circuits — stamp grid generator
+   - 5×4 grid (20 stamps) on 8×10" @ 300ppi (2400×3000) per sheet
    - Keys: s=save, r=reseed, ←/→ navigate, l=RISO preview, e=export plates
 */
 
@@ -20,11 +20,25 @@ const BADGE = 32; // category icon size
 const STAR_Y_OFFSET = 70; // below inner top
 const STAMP_BG = 248; // unified paper tone for stamp & image box
 
+// ⬇️ Text readability tweaks (centralized sizes + spacing)
+const TXT_NAME_1 = 22;
+const TXT_NAME_2 = 18;
+const TXT_YEARS = 15;
+const TXT_META = 12; // region • mfg
+const TXT_FORM = 11; // form factor
+const TXT_REASON = 10; // reason lines
+const TXT_REASON_LINE_GAP = 12;
+
+// ⬇️ Make images breathe less (smaller white space around images)
+const IMG_MARGIN = 32; // was 45
+const IMG_TEXT_FOOTER = 140; // was 150 (gives a touch more image height)
+
 //// RISO (lazy init) //////////////////////////////////////////////////////////
 let USE_RISO = false; // toggle with 'L' (only if risoReady())
 let L_BLACK = null,
 	L_TEAL = null;
 const TEAL_NAME = 'TEAL'; // choose 'TEAL' or other ink names
+let SHOW_TRACES = true; // press 'C' to toggle
 
 function risoReady() {
 	return typeof Riso !== 'undefined';
@@ -47,6 +61,7 @@ const LEVELS_GAMMA = 0.95; // <1.0 = a bit more contrast
 const DITHER_GAIN = 1.15; // already present; 1.05–1.30
 const DITHER_BIAS = -8; // already present; -20..+10
 const DITHER_MATRIX = '8x8'; // '4x4' or '8x8' (smoother)
+
 //// Globals ///////////////////////////////////////////////////////////////////
 let table,
 	devices = [],
@@ -54,6 +69,11 @@ let table,
 let grid;
 let sheetIndex = 0,
 	baseSeed = 1337;
+
+// ⬇️ Robust image loading state
+let imagesToLoad = 0;
+let imagesLoaded = 0;
+let imagesFailed = 0;
 
 //// Helpers: inner frame rect /////////////////////////////////////////////////
 function getInnerFrame(x, y, w, h) {
@@ -84,7 +104,7 @@ function setup() {
 		return;
 	}
 
-	// Build device records + load images
+	// Build device records + queue images
 	for (let r = 0; r < table.getRowCount(); r++) {
 		const row = table.getRow(r);
 
@@ -137,11 +157,20 @@ function setup() {
 		};
 		devices.push(rec);
 
+		// Queue image loading (count + redraw when all done)
 		if (rec.image_path && !images[rec.image_path]) {
+			imagesToLoad++;
 			images[rec.image_path] = loadImage(
 				rec.image_path,
-				() => drawSheet(), // show as each image loads
-				(err) => console.error('Image load failed:', rec.image_path, err)
+				() => {
+					imagesLoaded++;
+					if (imagesLoaded + imagesFailed === imagesToLoad) drawSheet();
+				},
+				(err) => {
+					imagesFailed++;
+					console.error('Image load failed:', rec.image_path, err);
+					if (imagesLoaded + imagesFailed === imagesToLoad) drawSheet();
+				}
 			);
 		}
 	}
@@ -175,6 +204,21 @@ function drawSheet() {
 		textAlign(CENTER, CENTER);
 		textSize(20);
 		text('Loading...', width / 2, height / 2);
+		return;
+	}
+
+	// If images are still loading, show a soft progress overlay and wait.
+	if (imagesToLoad > 0 && imagesLoaded + imagesFailed < imagesToLoad) {
+		background(255);
+		fill(0);
+		noStroke();
+		textAlign(CENTER, CENTER);
+		textSize(20);
+		text(
+			`Loading images ${imagesLoaded}/${imagesToLoad}…`,
+			width / 2,
+			height / 2
+		);
 		return;
 	}
 
@@ -421,31 +465,36 @@ function drawBorder(d, x, y, w, h, style = 'perforated') {
 
 //// CIRCUITS (RGB) ////////////////////////////////////////////////////////////
 function drawCircuits(d, x, y, w, h) {
+	if (!SHOW_TRACES) return;
 	const yr = isNaN(d.release_year)
 		? 1990
 		: constrain(d.release_year, 1960, 2020);
-	const numLines = floor(map(yr, 1960, 2020, 25, 8));
-
+	const baseLines = floor(map(yr, 1960, 2020, 18, 7)); // fewer
 	const { ix, iy, iw, ih } = getInnerFrame(x, y, w, h);
 
+	// carve out a soft “no-print” zone for text/footer
+	const footerTop = y + h - 150; // matches your text block
 	push();
 	noFill();
-	stroke(0, 50);
-	strokeWeight(1.5);
-	for (let i = 0; i < numLines; i++) {
+	stroke(0, 35); // ~14% black on screen
+	strokeWeight(1.2);
+	for (let i = 0; i < baseLines; i++) {
 		let px = random(ix, ix + iw),
-			py = random(iy, iy + ih);
+			py = random(iy, iy + ih - 60); // keep away from price/stars row
 		beginShape();
 		vertex(px, py);
-		for (let s = 0; s < 4; s++) {
-			const step = random(20, 45),
+		for (let s = 0; s < 3; s++) {
+			// fewer segments
+			const step = random(22, 42),
 				dir = floor(random(4));
 			if (dir === 0) px += step;
 			else if (dir === 1) px -= step;
 			else if (dir === 2) py += step;
 			else py -= step;
+
+			// constrain inside inner frame and above footer/text
 			px = constrain(px, ix, ix + iw);
-			py = constrain(py, iy, iy + ih);
+			py = constrain(py, iy, min(iy + ih - 70, footerTop - 8));
 			vertex(px, py);
 		}
 		endShape();
@@ -455,11 +504,11 @@ function drawCircuits(d, x, y, w, h) {
 
 //// IMAGE (RGB) ///////////////////////////////////////////////////////////////
 function drawImage(d, x, y, w, h) {
-	const margin = 45;
+	const margin = IMG_MARGIN;
 	const imgX = x + STAMP_INSET + margin;
 	const imgY = y + STAMP_INSET + margin;
 	const imgW = w - (STAMP_INSET + margin) * 2;
-	const imgH = h - (STAMP_INSET + margin) * 2 - 150;
+	const imgH = h - (STAMP_INSET + margin) * 2 - IMG_TEXT_FOOTER;
 
 	// unified paper behind PNGs
 	push();
@@ -630,48 +679,48 @@ function drawText(d, x, y, w, h) {
 	textAlign(CENTER, CENTER);
 	fill(0);
 	textStyle(BOLD);
-	textSize(18);
-	const nameLines = wrapText(d.name, maxWidth);
+	textSize(TXT_NAME_1);
+	const nameLines = wrapText(d.name, maxWidth, TXT_NAME_1);
 	text(nameLines[0], cx, baseY);
 	if (nameLines.length > 1) {
-		textSize(16);
-		text(nameLines[1], cx, baseY + 20);
+		textSize(TXT_NAME_2);
+		text(nameLines[1], cx, baseY + 22);
 	}
 
 	// years
 	textStyle(NORMAL);
-	textSize(14);
+	textSize(TXT_YEARS);
 	const yrs =
 		!isNaN(d.release_year) && !isNaN(d.discontinued)
 			? `${d.release_year}–${d.discontinued}`
 			: !isNaN(d.release_year)
 			? `${d.release_year}`
 			: '';
-	text(yrs, cx, baseY + 42);
+	text(yrs, cx, baseY + 46);
 
 	// region • mfg
-	textSize(11);
-	fill(70);
+	textSize(TXT_META);
+	fill(30); // darker for contrast
 	const region = d.region || '',
 		mfg = d.manufacturer || '';
-	text(region && mfg ? `${region} • ${mfg}` : region || mfg, cx, baseY + 60);
+	text(region && mfg ? `${region} • ${mfg}` : region || mfg, cx, baseY + 64);
 
 	// form factor
-	textSize(10);
+	textSize(TXT_FORM);
 	textStyle(ITALIC);
-	fill(100);
-	if (d.form_factor) text(d.form_factor, cx, baseY + 76);
+	fill(50);
+	if (d.form_factor) text(d.form_factor, cx, baseY + 82);
 
 	// reason (wrap to ≤3 lines, centered)
 	textStyle(NORMAL);
-	textSize(9);
-	fill(130);
+	textSize(TXT_REASON);
+	fill(60);
 	if (d.reason_for_obsolescence) {
 		const words = d.reason_for_obsolescence.trim().split(/\s+/);
 		const boxW = maxWidth,
 			maxLines = 3,
-			lineGap = 11,
-			startY = baseY + 92;
+			lineGap = TXT_REASON_LINE_GAP,
+			startY = baseY + 98;
 
 		textAlign(LEFT, TOP);
 		let lines = [],
@@ -693,8 +742,8 @@ function drawText(d, x, y, w, h) {
 	}
 	pop();
 }
-function wrapText(str, maxW) {
-	textSize(18);
+function wrapText(str, maxW, sizePx) {
+	textSize(sizePx || TXT_NAME_1);
 	if (textWidth(str) <= maxW) return [str];
 	const words = str.split(/\s+/);
 	let line1 = '',
@@ -713,6 +762,9 @@ function wrapText(str, maxW) {
 
 //// PG WRAPPERS FOR RISO BLACK ///////////////////////////////////////////////
 function drawCircuits_toPG(g, d, x, y, w, h) {
+	if (!SHOW_TRACES) return;
+	g.stroke(0, 180); // lighter on plate so it doesn’t overpower teal
+
 	const yr = isNaN(d.release_year)
 		? 1990
 		: constrain(d.release_year, 1960, 2020);
@@ -945,41 +997,41 @@ function drawText_toPG(g, d, x, y, w, h) {
 	g.textAlign(CENTER, CENTER);
 	g.fill(0);
 	g.textStyle(BOLD);
-	g.textSize(18);
-	const nameLines = wrapText(d.name, maxWidth);
+	g.textSize(TXT_NAME_1);
+	const nameLines = wrapText(d.name, maxWidth, TXT_NAME_1);
 	g.text(nameLines[0], cx, baseY);
 	if (nameLines.length > 1) {
-		g.textSize(16);
-		g.text(nameLines[1], cx, baseY + 20);
+		g.textSize(TXT_NAME_2);
+		g.text(nameLines[1], cx, baseY + 22);
 	}
 
 	g.textStyle(NORMAL);
-	g.textSize(14);
+	g.textSize(TXT_YEARS);
 	const yrs =
 		!isNaN(d.release_year) && !isNaN(d.discontinued)
 			? `${d.release_year}–${d.discontinued}`
 			: !isNaN(d.release_year)
 			? `${d.release_year}`
 			: '';
-	g.text(yrs, cx, baseY + 42);
+	g.text(yrs, cx, baseY + 46);
 
-	g.textSize(11);
+	g.textSize(TXT_META);
 	const region = d.region || '',
 		mfg = d.manufacturer || '';
-	g.text(region && mfg ? `${region} • ${mfg}` : region || mfg, cx, baseY + 60);
+	g.text(region && mfg ? `${region} • ${mfg}` : region || mfg, cx, baseY + 64);
 
-	g.textSize(10);
+	g.textSize(TXT_FORM);
 	g.textStyle(ITALIC);
-	if (d.form_factor) g.text(d.form_factor, cx, baseY + 76);
+	if (d.form_factor) g.text(d.form_factor, cx, baseY + 82);
 
 	g.textStyle(NORMAL);
-	g.textSize(9);
+	g.textSize(TXT_REASON);
 	if (d.reason_for_obsolescence) {
 		const words = d.reason_for_obsolescence.trim().split(/\s+/);
 		const boxW = maxWidth,
 			maxLines = 3,
-			lineGap = 11,
-			startY = baseY + 92;
+			lineGap = TXT_REASON_LINE_GAP,
+			startY = baseY + 98;
 		g.textAlign(LEFT, TOP);
 		let lines = [],
 			cur = '';
@@ -1001,11 +1053,11 @@ function drawText_toPG(g, d, x, y, w, h) {
 
 //// TEAL PLATE (Bayer dither) ////////////////////////////////////////////////
 function drawImageHalftone_toLayer(layer, d, x, y, w, h) {
-	const margin = 45;
+	const margin = IMG_MARGIN;
 	const imgX = x + STAMP_INSET + margin;
 	const imgY = y + STAMP_INSET + margin;
 	const imgW = w - (STAMP_INSET + margin) * 2;
-	const imgH = h - (STAMP_INSET + margin) * 2 - 150;
+	const imgH = h - (STAMP_INSET + margin) * 2 - IMG_TEXT_FOOTER;
 
 	const img = d.image_path ? images[d.image_path] : null;
 	if (!img || img.width === 0) return;
@@ -1281,6 +1333,10 @@ function hash(s) {
 
 //// INTERACTION ////////////////////////////////////////////////////////////////
 function keyPressed() {
+	if (key === 'c' || key === 'C') {
+		SHOW_TRACES = !SHOW_TRACES;
+		drawSheet();
+	}
 	if (key === 'r' || key === 'R') {
 		baseSeed = floor(random(1e9));
 		drawSheet();
