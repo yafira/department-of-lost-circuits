@@ -1151,36 +1151,52 @@ function bayerDither4x4(pg, gain = 1.0, bias = 0) {
 }
 
 // ---- Auto-levels: clip low/high percentiles, convert to grayscale, apply gamma
+// ---- Auto-levels (alpha-aware): clip low/high percentiles on opaque pixels only
 function autoLevelsGray(pg, clipLow = 0.05, clipHigh = 0.95, gamma = 1.0) {
 	const w = pg.width,
 		h = pg.height;
 	pg.loadPixels();
 
-	// luminance histogram
+	// luminance histogram over opaque pixels only
 	const hist = new Uint32Array(256);
+	let opaqueCount = 0;
 	for (let i = 0; i < w * h; i++) {
 		const idx = i * 4;
-		const r = pg.pixels[idx],
-			g = pg.pixels[idx + 1],
-			b = pg.pixels[idx + 2];
-		const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
-		hist[lum]++;
+		const a = pg.pixels[idx + 3];
+		if (a > 8) {
+			// ignore fully/near-transparent pixels
+			const r = pg.pixels[idx],
+				g = pg.pixels[idx + 1],
+				b = pg.pixels[idx + 2];
+			const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+			hist[lum]++;
+			opaqueCount++;
+		}
 	}
+
+	// if everything is transparent or no opaque pixels, just return a white image
+	if (opaqueCount === 0) {
+		const outEmpty = createGraphics(w, h);
+		outEmpty.pixelDensity(1);
+		outEmpty.background(255, 0); // fully transparent white
+		return outEmpty;
+	}
+
 	// cumulative
-	let cdf = new Uint32Array(256),
-		sum = 0;
+	const cdf = new Uint32Array(256);
+	let sum = 0;
 	for (let i = 0; i < 256; i++) {
 		sum += hist[i];
 		cdf[i] = sum;
 	}
-	const total = w * h;
+
 	const loTarget = Math.max(
 		0,
-		Math.min(total - 1, Math.floor(total * clipLow))
+		Math.min(opaqueCount - 1, Math.floor(opaqueCount * clipLow))
 	);
 	const hiTarget = Math.max(
 		0,
-		Math.min(total - 1, Math.floor(total * clipHigh))
+		Math.min(opaqueCount - 1, Math.floor(opaqueCount * clipHigh))
 	);
 
 	// find cutoffs
@@ -1202,6 +1218,15 @@ function autoLevelsGray(pg, clipLow = 0.05, clipHigh = 0.95, gamma = 1.0) {
 		const idx = i * 4;
 		const a = pg.pixels[idx + 3];
 
+		// keep transparent pixels transparent and white
+		if (a <= 8) {
+			out.pixels[idx] = 255;
+			out.pixels[idx + 1] = 255;
+			out.pixels[idx + 2] = 255;
+			out.pixels[idx + 3] = 0;
+			continue;
+		}
+
 		const r = pg.pixels[idx],
 			g = pg.pixels[idx + 1],
 			b = pg.pixels[idx + 2];
@@ -1219,7 +1244,7 @@ function autoLevelsGray(pg, clipLow = 0.05, clipHigh = 0.95, gamma = 1.0) {
 		out.pixels[idx] = val;
 		out.pixels[idx + 1] = val;
 		out.pixels[idx + 2] = val;
-		out.pixels[idx + 3] = a;
+		out.pixels[idx + 3] = a; // preserve original alpha
 	}
 	out.updatePixels();
 	return out;
